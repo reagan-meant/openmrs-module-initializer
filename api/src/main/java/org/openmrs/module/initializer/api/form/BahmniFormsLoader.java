@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.commons.logging.Log;
 import org.bahmni.module.bahmni.ie.apps.model.BahmniForm;
@@ -58,6 +59,7 @@ public class BahmniFormsLoader extends BaseLoader {
 				is = new FileInputStream(file);
 				Map jsonFile = new ObjectMapper().readValue(is, Map.class);
 				Map formJson = (Map) jsonFile.get("formJson");
+				List<Map> translations = (List<Map>) jsonFile.get("translations");
 				String formName = (String) formJson.get("name");
 				Boolean published = (Boolean) formJson.get("published");
 				List<Map> resources = (List<Map>) formJson.get("resources");
@@ -92,7 +94,18 @@ public class BahmniFormsLoader extends BaseLoader {
 				bahmniFormService.saveFormResource(bahmniFormResource);
 				
 				// Save Translation
-				List<FormTranslation> formTranslations = (List<FormTranslation>) jsonFile.get("translations");
+				final Form finalForm = form;
+				List<FormTranslation> formTranslations = translations.stream().map(formTranslation -> {
+					FormTranslation ft = new FormTranslation();
+					ft.setLocale(formTranslation.get("locale").toString());
+					ft.setConcepts((Map<String, String>) formTranslation.get("concepts"));
+					ft.setFormUuid(finalForm.getUuid());
+					ft.setFormName(formTranslation.get("formName").toString());
+					ft.setLabels((Map<String, String>) formTranslation.get("labels"));
+					ft.setVersion(formTranslation.get("version").toString());
+					return ft;
+				}).collect(Collectors.toList());
+
 				bahmniFormTranslationService.saveFormTranslation(formTranslations);
 				
 				// publish the form
